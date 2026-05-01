@@ -111,64 +111,96 @@ graph TD
 
 ### Layer 01: Networking
 1. Create your VPC, public subnets, and private subnets.
-2. Initialize and apply the network state.
+2. Initialize, plan, and apply the network state.
    ```bash
    cd 01-network
    terraform init
+   terraform plan
    terraform apply -auto-approve
+   ```
+3. Verify the infrastructure:
+   ```bash
+   # Verify Task Status
+   TASK_ARN=$(aws ecs list-tasks --cluster vault-cluster --service-name vault-service --query 'taskArns[0]' --output text)
+   aws ecs describe-tasks --cluster vault-cluster --tasks $TASK_ARN --query 'tasks[0].lastStatus' --output text
+
+   # Verify Target Health
+   TG_ARN=$(aws elbv2 describe-target-groups --names vault-tg --query 'TargetGroups[0].TargetGroupArn' --output text)
+   aws elbv2 describe-target-health --target-group-arn $TG_ARN --query 'TargetHealthDescriptions[*].TargetHealth.State' --output text
+
+   # Check Health Status via cURL
+   curl -I [https://vault.your-dns-zone-example.com/v1/sys/health](https://vault.your-dns-zone-example.com/v1/sys/health)
    ```
 
 ### Layer 02: Security
 1. Create the AWS KMS key for auto-unseal, IAM roles for ECS tasks, and EFS security groups.
 2. Ensure the key alias matches `alias/prod-v5-vault-key`.
+3. Initialize, plan, and apply the security state.
    ```bash
    cd ../02-security
    terraform init
+   terraform plan
    terraform apply -auto-approve
+   ```
+4. Verify the infrastructure:
+   ```bash
+   # Verify Task Status
+   TASK_ARN=$(aws ecs list-tasks --cluster vault-cluster --service-name vault-service --query 'taskArns[0]' --output text)
+   aws ecs describe-tasks --cluster vault-cluster --tasks $TASK_ARN --query 'tasks[0].lastStatus' --output text
+
+   # Verify Target Health
+   TG_ARN=$(aws elbv2 describe-target-groups --names vault-tg --query 'TargetGroups[0].TargetGroupArn' --output text)
+   aws elbv2 describe-target-health --target-group-arn $TG_ARN --query 'TargetHealthDescriptions[*].TargetHealth.State' --output text
+
+   # Check Health Status via cURL
+   curl -I [https://vault.your-dns-zone-example.com/v1/sys/health](https://vault.your-dns-zone-example.com/v1/sys/health)
    ```
 
 ### Layer 03: Storage
 1. Provision the Amazon EFS file system, access point, and security groups.
+2. Initialize, plan, and apply the storage state.
    ```bash
    cd ../03-storage
    terraform init
+   terraform plan
    terraform apply -auto-approve
+   ```
+3. Verify the infrastructure:
+   ```bash
+   # Verify Task Status
+   TASK_ARN=$(aws ecs list-tasks --cluster vault-cluster --service-name vault-service --query 'taskArns[0]' --output text)
+   aws ecs describe-tasks --cluster vault-cluster --tasks $TASK_ARN --query 'tasks[0].lastStatus' --output text
+
+   # Verify Target Health
+   TG_ARN=$(aws elbv2 describe-target-groups --names vault-tg --query 'TargetGroups[0].TargetGroupArn' --output text)
+   aws elbv2 describe-target-health --target-group-arn $TG_ARN --query 'TargetHealthDescriptions[*].TargetHealth.State' --output text
+
+   # Check Health Status via cURL
+   curl -I [https://vault.your-dns-zone-example.com/v1/sys/health](https://vault.your-dns-zone-example.com/v1/sys/health)
    ```
 
 ### Layer 04: Application (ECS, ALB, and ACM)
 1. Verify that `04-app/main.tf` is properly configured, and any redundant local files have been deleted.
-2. Initialize and apply the final infrastructure layer:
+2. Initialize, plan, and apply the final infrastructure layer:
    ```bash
    cd ../04-app
    terraform init
+   terraform plan
    terraform apply -auto-approve
    ```
+3. Verify the infrastructure:
+   ```bash
+   # Verify Task Status
+   TASK_ARN=$(aws ecs list-tasks --cluster vault-cluster --service-name vault-service --query 'taskArns[0]' --output text)
+   aws ecs describe-tasks --cluster vault-cluster --tasks $TASK_ARN --query 'tasks[0].lastStatus' --output text
 
----
+   # Verify Target Health
+   TG_ARN=$(aws elbv2 describe-target-groups --names vault-tg --query 'TargetGroups[0].TargetGroupArn' --output text)
+   aws elbv2 describe-target-health --target-group-arn $TG_ARN --query 'TargetHealthDescriptions[*].TargetHealth.State' --output text
 
-## Infrastructure Validation
-
-Verify that the ECS tasks and target groups are healthy and running:
-
-### 1. Verify Task Status
-```bash
-TASK_ARN=$(aws ecs list-tasks --cluster vault-cluster --service-name vault-service --query 'taskArns[0]' --output text)
-aws ecs describe-tasks --cluster vault-cluster --tasks $TASK_ARN --query 'tasks[0].lastStatus' --output text
-```
-* **Expected Output:** `RUNNING`
-
-### 2. Verify Target Health
-```bash
-TG_ARN=$(aws elbv2 describe-target-groups --names vault-tg --query 'TargetGroups[0].TargetGroupArn' --output text)
-aws elbv2 describe-target-health --target-group-arn $TG_ARN --query 'TargetHealthDescriptions[*].TargetHealth.State' --output text
-```
-* **Expected Output:** `healthy`
-
-### 3. Check Health Status via cURL
-```bash
-curl -I [https://vault.your-dns-zone-example.com/v1/sys/health](https://vault.your-dns-zone-example.com/v1/sys/health)
-```
-* **Expected Output:** `501 Not Implemented` (This indicates an uninitialized state, which is expected before Vault setup).
+   # Check Health Status via cURL
+   curl -I [https://vault.your-dns-zone-example.com/v1/sys/health](https://vault.your-dns-zone-example.com/v1/sys/health)
+   ```
 
 ---
 
