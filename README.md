@@ -11,6 +11,7 @@ Before starting the deployment, ensure you have the following tools and resource
 
 * **AWS Account:** An active AWS account with appropriate permissions to create IAM roles, KMS keys, EFS, and ECS resources.
 * **AWS CLI:** Installed and authenticated locally using your credentials (run `aws configure` or set your environment variables).
+* **Route 53 Hosted Zone:** A hosted zone for `your-dns-zone-example.com` already created in your AWS account containing the default `NS` and `SOA` records.
 * **Terraform:** Installed (version 1.5+ recommended) to manage infrastructure as code.
 * **Vault CLI:** Installed locally on your workstation to interact with the Vault server after deployment.
 * **Docker:** Installed locally on your machine (useful for inspecting or pulling container base images).
@@ -165,7 +166,7 @@ aws elbv2 describe-target-health --target-group-arn $TG_ARN --query 'TargetHealt
 
 ### 3. Check Health Status via cURL
 ```bash
-curl -I [https://vault.sreconcepts.com/v1/sys/health](https://vault.sreconcepts.com/v1/sys/health)
+curl -I [https://vault.your-dns-zone-example.com/v1/sys/health](https://vault.your-dns-zone-example.com/v1/sys/health)
 ```
 * **Expected Output:** `501 Not Implemented` (This indicates an uninitialized state, which is expected before Vault setup).
 
@@ -173,7 +174,7 @@ curl -I [https://vault.sreconcepts.com/v1/sys/health](https://vault.sreconcepts.
 
 ## Vault Initial Setup
 
-1. Open your web browser and navigate to: `https://vault.sreconcepts.com/`
+1. Open your web browser and navigate to: `https://vault.your-dns-zone-example.com/`
 2. You will see the Vault Initial Setup screen.
 3. Configure the **Key shares** and **Key threshold**:
    * **Key shares:** `3`
@@ -189,7 +190,7 @@ Configure your environment and verify operations using the Vault CLI:
 
 ### 1. Set the Address and Log In
 ```bash
-export VAULT_ADDR="[https://vault.sreconcepts.com](https://vault.sreconcepts.com)"
+export VAULT_ADDR="[https://vault.your-dns-zone-example.com](https://vault.your-dns-zone-example.com)"
 vault login
 ```
 Provide the root token when prompted.
