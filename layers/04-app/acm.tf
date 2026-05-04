@@ -2,7 +2,7 @@
 resource "aws_acm_certificate" "vault" {
   domain_name       = "sreconcepts.com"
   validation_method = "DNS"
-  subject_alternative_names = ["*.sreconcepts.com"] # Matches your previous setup
+  subject_alternative_names = ["*.sreconcepts.com"]
 
   lifecycle {
     create_before_destroy = true

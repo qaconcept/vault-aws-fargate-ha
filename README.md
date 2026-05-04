@@ -11,11 +11,24 @@ Before starting the deployment, ensure you have the following tools and resource
 
 * **AWS Account:** An active AWS account with appropriate permissions to create IAM roles, KMS keys, EFS, and ECS resources.
 * **AWS CLI:** Installed and authenticated locally using your credentials (run `aws configure` or set your environment variables).
-* **Route 53 Hosted Zone:** A hosted zone for `your-dns-zone-example.com` already created in your AWS account containing the default `NS` and `SOA` records.
 * **Terraform:** Installed (version 1.5+ recommended) to manage infrastructure as code.
 * **Vault CLI:** Installed locally on your workstation to interact with the Vault server after deployment.
 * **Docker:** Installed locally on your machine (useful for inspecting or pulling container base images).
-
+* **Route 53 Hosted Zone:** A hosted zone for `your-dns-zone-example.com` already created in your AWS account containing the default `NS` and `SOA` records.
+* **Important: (change all sreconcept.com references - my personal domain "sreconcepts.com") to your domain:
+1. /layers/04-app/acm.tf
+    1. In #1. Request the Certificate section, resource "aws_acm_certificate" "vault" block:
+        1. Update domain_name to your donaim name.
+        2. Update subject_alternative_names to your subject_alternative_name.
+    2. In #2. Get your existing Route53 Zone section, data "aws_route53_zone" "main" block:
+        1. Update data "aws_route53_zone" "main" name to your name.
+2. /layers/04-app/acm.tf
+    1. In #5. ECS Task Definition, 
+        1. environment block:
+            1. update api_addr to your api_addr.
+    2. In #6. ECS Service & DNS, 
+        1. resource "aws_route53_record" "vault" block:
+            1. update “name” to your name.
 ---
 
 ## Repository Setup & GitHub Actions
@@ -105,6 +118,9 @@ graph TD
 ### 4. Centralized Key Management
 * KMS provides rotatable, auditable encryption keys.
 
+### 5. Code Review
+* Note: Code reviewed with Google Gemeni LLM
+
 ---
 
 ## Step-by-Step Implementation
@@ -113,23 +129,10 @@ graph TD
 1. Create your VPC, public subnets, and private subnets.
 2. Initialize, plan, and apply the network state.
    ```bash
-   cd 01-network
+   cd layers/01-network/
    terraform init
    terraform plan
    terraform apply -auto-approve
-   ```
-3. Verify the infrastructure:
-   ```bash
-   # Verify Task Status
-   TASK_ARN=$(aws ecs list-tasks --cluster vault-cluster --service-name vault-service --query 'taskArns[0]' --output text)
-   aws ecs describe-tasks --cluster vault-cluster --tasks $TASK_ARN --query 'tasks[0].lastStatus' --output text
-
-   # Verify Target Health
-   TG_ARN=$(aws elbv2 describe-target-groups --names vault-tg --query 'TargetGroups[0].TargetGroupArn' --output text)
-   aws elbv2 describe-target-health --target-group-arn $TG_ARN --query 'TargetHealthDescriptions[*].TargetHealth.State' --output text
-
-   # Check Health Status via cURL
-   curl -I [https://vault.your-dns-zone-example.com/v1/sys/health](https://vault.your-dns-zone-example.com/v1/sys/health)
    ```
 
 ### Layer 02: Security
@@ -142,19 +145,6 @@ graph TD
    terraform plan
    terraform apply -auto-approve
    ```
-4. Verify the infrastructure:
-   ```bash
-   # Verify Task Status
-   TASK_ARN=$(aws ecs list-tasks --cluster vault-cluster --service-name vault-service --query 'taskArns[0]' --output text)
-   aws ecs describe-tasks --cluster vault-cluster --tasks $TASK_ARN --query 'tasks[0].lastStatus' --output text
-
-   # Verify Target Health
-   TG_ARN=$(aws elbv2 describe-target-groups --names vault-tg --query 'TargetGroups[0].TargetGroupArn' --output text)
-   aws elbv2 describe-target-health --target-group-arn $TG_ARN --query 'TargetHealthDescriptions[*].TargetHealth.State' --output text
-
-   # Check Health Status via cURL
-   curl -I [https://vault.your-dns-zone-example.com/v1/sys/health](https://vault.your-dns-zone-example.com/v1/sys/health)
-   ```
 
 ### Layer 03: Storage
 1. Provision the Amazon EFS file system, access point, and security groups.
@@ -165,22 +155,9 @@ graph TD
    terraform plan
    terraform apply -auto-approve
    ```
-3. Verify the infrastructure:
-   ```bash
-   # Verify Task Status
-   TASK_ARN=$(aws ecs list-tasks --cluster vault-cluster --service-name vault-service --query 'taskArns[0]' --output text)
-   aws ecs describe-tasks --cluster vault-cluster --tasks $TASK_ARN --query 'tasks[0].lastStatus' --output text
-
-   # Verify Target Health
-   TG_ARN=$(aws elbv2 describe-target-groups --names vault-tg --query 'TargetGroups[0].TargetGroupArn' --output text)
-   aws elbv2 describe-target-health --target-group-arn $TG_ARN --query 'TargetHealthDescriptions[*].TargetHealth.State' --output text
-
-   # Check Health Status via cURL
-   curl -I [https://vault.your-dns-zone-example.com/v1/sys/health](https://vault.your-dns-zone-example.com/v1/sys/health)
-   ```
 
 ### Layer 04: Application (ECS, ALB, and ACM)
-1. Verify that `04-app/main.tf` is properly configured, and any redundant local files have been deleted.
+1. Verify that `04-app/main.tf` is properly configured, and any redundant local files have been deleted. Also update 'sreconcepts.com' to your Route 53 Hosted zone (ie: 'example.com')
 2. Initialize, plan, and apply the final infrastructure layer:
    ```bash
    cd ../04-app
@@ -188,31 +165,32 @@ graph TD
    terraform plan
    terraform apply -auto-approve
    ```
-3. Verify the infrastructure:
+3. Verify the infrastructure (Wait about 3-5 minutes after 04-app: Apply complete!):
    ```bash
    # Verify Task Status
    TASK_ARN=$(aws ecs list-tasks --cluster vault-cluster --service-name vault-service --query 'taskArns[0]' --output text)
    aws ecs describe-tasks --cluster vault-cluster --tasks $TASK_ARN --query 'tasks[0].lastStatus' --output text
 
+   Output should = 'RUNNING'
+
    # Verify Target Health
    TG_ARN=$(aws elbv2 describe-target-groups --names vault-tg --query 'TargetGroups[0].TargetGroupArn' --output text)
    aws elbv2 describe-target-health --target-group-arn $TG_ARN --query 'TargetHealthDescriptions[*].TargetHealth.State' --output text
 
-   # Check Health Status via cURL
-   curl -I [https://vault.your-dns-zone-example.com/v1/sys/health](https://vault.your-dns-zone-example.com/v1/sys/health)
-   ```
+   Output should = [ "healthy" ]
 
 ---
 
 ## Vault Initial Setup
 
-1. Open your web browser and navigate to: `https://vault.your-dns-zone-example.com/`
-2. You will see the Vault Initial Setup screen.
-3. Configure the **Key shares** and **Key threshold**:
+1. Open your web browser and navigate to: `https://vault.sreconcepts.com/` (note: replace vault.sreconcepts.com with your own Route 53 hosted zone A record)
+2. Vault will be Sealed... select 'Create a new Raft cluster' and click Next
+3. You will see the Vault Initial Setup screen.
+4. Configure the **Key shares** and **Key threshold**:
    * **Key shares:** `3`
    * **Key threshold:** `2`
-4. Click **Initialize**.
-5. **CRITICAL STEP:** Download and securely store the generated Unseal Keys and Initial Root Token.
+5. Click **Initialize**. (wait for Vault to be initialized)
+6. **CRITICAL STEP:** Download and securely store the generated Unseal Keys and Initial Root Token.
 
 ---
 
@@ -220,9 +198,9 @@ graph TD
 
 Configure your environment and verify operations using the Vault CLI:
 
-### 1. Set the Address and Log In
+### 1. Set the Address and Log In (note: replace vault.sreconcepts.com with your own Route 53 hosted zone A record)
 ```bash
-export VAULT_ADDR="[https://vault.your-dns-zone-example.com](https://vault.your-dns-zone-example.com)"
+export VAULT_ADDR="https://vault.sreconcepts.com"
 vault login
 ```
 Provide the root token when prompted.
