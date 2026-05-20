@@ -66,6 +66,8 @@ The architecture uses the following components:
 * **Security & Secrets:** The task uses an execution and task role created in the security layer and leverages AWS KMS for auto-unseal.
 * **Ingress:** Traffic reaches the ALB over HTTPS on port 443 and is forwarded to port 8200 on the target container. A Route 53 A-record points to the ALB DNS.
 
+![AWS HA Vault AWS Fargate Architecture Diagram](images/vault-aws-fargate-HA.png)
+
 ---
 
 ## 2. 📊 Mermaid.js Code (Architecture Diagram)
