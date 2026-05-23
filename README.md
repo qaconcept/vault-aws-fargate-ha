@@ -159,7 +159,31 @@ graph TD
    ```
 
 ### Layer 04: Application (ECS, ALB, and ACM)
-1. Verify that `04-app/main.tf` is properly configured, and any redundant local files have been deleted. Also update 'sreconcepts.com' to your Route 53 Hosted zone (ie: 'example.com')
+1. Configure your domain settings
+Update the variables in layers/04-app/variables.tf to match your own domain:
+variable "domain_name" {
+  description = "Root domain name (must exist in Route53)"
+  type        = string
+  default     = "sreconcepts.com"   # ← Change this to your domain
+}
+
+variable "subdomain" {
+  description = "Subdomain for Vault"
+  type        = string
+  default     = "vault"             # ← Change if you want e.g. "vault-prod"
+}
+
+variable "region" {
+  description = "AWS Region"
+  type        = string
+  default     = "us-east-1"
+}
+
+2. Verify that `04-app/main.tf` is properly configured, and any redundant local files have been deleted.
+
+Additional Recommended Section (Optional but helpful): 
+Note: Make sure your domain (domain_name) has a public hosted zone in Route 53. The deployment will either use an existing ACM certificate for your domain or create and validate a new one automatically.
+
 2. Initialize, plan, and apply the final infrastructure layer:
    ```bash
    cd ../04-app
@@ -278,4 +302,110 @@ Key    Value
 ---    -----
 foo    world
 ```
+
+#### Further Reading & Official Vault Documentation
+Here are some official HashiCorp Vault resources especially helpful for beginners and AWS users:
+
+* **Networking:** The ECS Fargate tasks and Application Load Balancer (ALB) reside in the subnets defined by the network layer.
+
+* **Vault Official Documentation** — Main documentation hub (https://developer.hashicorp.com/vault/docs)
+* **Getting Started with Vault** — Quick start guide for developers (https://developer.hashicorp.com/vault/docs/get-started/developer-qs)
+* **Vault Tutorials Collection** — Excellent step-by-step tutorials (highly recommended for new users) (https://developer.hashicorp.com/vault/tutorials)
+* **Secrets Management Concepts** — Core concepts explained (https://developer.hashicorp.com/vault/docs/about-vault/what-is-vault)
+* **AWS Secrets Engine** — How to generate dynamic AWS credentials (IAM roles, access keys, etc.) (https://developer.hashicorp.com/vault/docs/secrets/aws)
+* **Vault CLI Commands Reference** — Quick reference for common operations (https://developer.hashicorp.com/vault/docs/commands)
+
+### Recommended Learning Path for Beginners:
+
+Start with the **Developer Quick Start** (https://developer.hashicorp.com/vault/docs/get-started/developer-qs)
+Learn about **Authentication Methods** (https://developer.hashicorp.com/vault/docs/auth)
+Explore **Secrets Engines** (https://developer.hashicorp.com/vault/docs/secrets)
+Study the **AWS Integration** (https://developer.hashicorp.com/vault/docs/secrets/aws)
+
+#### Common Post-Deployment Tasks
+After the infrastructure is deployed, you need to initialize and configure Vault:
+### 1. Initialize Vault (First Time Only)
+
+```bash
+# Get your Vault URL from outputs
+export VAULT_ADDR="https://vault.yourdomain.com"
+
+# Initialize Vault (do this only once)
+vault operator init
+```
+
+This will output:
+* Initial Root Token
+* 5 Unseal Keys (keep these safe!)
+
+### 2. Unseal Vault
+
+```bash
+vault operator unseal <unseal-key-1>
+vault operator unseal <unseal-key-2>
+vault operator unseal <unseal-key-3>
+```
+### 3. Login to Vault
+```bash
+vault login
+```
+
+### 4. Common First-Time Setup Commands
+```bash
+# Enable common secrets engines
+vault secrets enable kv-v2
+vault secrets enable aws
+
+# Enable authentication methods
+vault auth enable userpass
+vault auth enable aws
+
+# Create a policy (example)
+vault policy write admin - <<EOF
+path "*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+EOF
+```
+
+#### Common Post-Deployment Tasks Section
+
+### Post-Deployment Tasks
+
+After successful deployment, complete these steps to start using Vault:
+
+### 1. Initialize and Unseal Vault (One-time only)
+
+```bash
+export VAULT_ADDR=$(terraform output -raw vault_url)
+
+# Initialize Vault
+vault operator init
+
+# Unseal Vault (repeat 3 times with different unseal keys)
+vault operator unseal <key-1>
+vault operator unseal <key-2>
+vault operator unseal <key-3>
+```
+
+### 2. Login and Initial Configuration
+```bash
+# Login with root token
+vault login
+
+# Enable useful secrets engines
+vault secrets enable kv-v2
+vault secrets enable aws
+
+# Enable authentication methods
+vault auth enable userpass
+vault auth enable aws
+```
+
+### 3. Create Policies and Users
+
+See the Vault Tutorials (https://developer.hashicorp.com/vault/tutorials) for detailed examples.
+    Security Note: Store your unseal keys and root token securely (e.g., in a password manager). 
+    Consider using Vault's Auto-unseal with AWS KMS (already configured in this project).
+
 ```

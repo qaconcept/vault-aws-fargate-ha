@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"
+  region = var.region
 }
 
 # ---------------------------------------------------------
@@ -33,8 +33,11 @@ locals {
   vault_task_role_arn      = data.terraform_remote_state.security.outputs.vault_task_role_arn
   vault_execution_role_arn = data.terraform_remote_state.security.outputs.vault_execution_role_arn
   efs_id                   = data.terraform_remote_state.storage.outputs.efs_id
-  efs_access_point_id      = data.terraform_remote_state.storage.outputs.efs_access_point_id # (Update if named differently)
+  efs_access_point_id      = data.terraform_remote_state.storage.outputs.efs_access_point_id
   efs_sg_id                = data.terraform_remote_state.storage.outputs.efs_sg_id
+
+  # Full domain name for Vault
+  vault_fqdn = "${var.subdomain}.${var.domain_name}"
 }
 
 # ---------------------------------------------------------
@@ -108,7 +111,7 @@ resource "aws_lb_target_group" "vault" {
   vpc_id      = local.vpc_id
   target_type = "ip"
 
-health_check {
+  health_check {
     path                = "/v1/sys/health?uninitcode=200&sealedcode=200"
     protocol            = "HTTP"
     port                = "8200"
@@ -125,7 +128,7 @@ resource "aws_lb_listener" "https" {
   port              = "443"
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = aws_acm_certificate_validation.vault.certificate_arn
+  certificate_arn   = local.certificate_arn   # ← Now using the smart local from acm.tf
 
   default_action {
     type             = "forward"
@@ -150,6 +153,7 @@ resource "aws_ecs_task_definition" "vault" {
     image   = "hashicorp/vault:1.15.6"
     user    = "0"
     command = ["server"]
+
     portMappings = [{ containerPort = 8200, hostPort = 8200 }]
     mountPoints  = [{ sourceVolume = "vault-data", containerPath = "/vault/data", readOnly = false }]
 
@@ -157,21 +161,39 @@ resource "aws_ecs_task_definition" "vault" {
       logDriver = "awslogs"
       options = {
         "awslogs-group"         = "/ecs/vault"
-        "awslogs-region"        = "us-east-1"
+        "awslogs-region"        = var.region
         "awslogs-stream-prefix" = "vault"
       }
     }
 
-environment = [
-      { name = "VAULT_LOCAL_CONFIG", value = jsonencode({
-        storage = { raft = { path = "/vault/data", node_id = "node1" } }
-        seal    = { awskms = { region = "us-east-1", kms_key_id = "alias/prod-v5-vault-key" } }
-        listener = { tcp = { address = "0.0.0.0:8200", tls_disable = "true" } }
-        cluster_addr = "http://127.0.0.1:8201"
-        api_addr     = "https://vault.sreconcepts.com"
-        ui = true
-        disable_mlock = true
-      })},
+    environment = [
+      {
+        name = "VAULT_LOCAL_CONFIG"
+        value = jsonencode({
+          storage = {
+            raft = {
+              path     = "/vault/data"
+              node_id  = "node1"
+            }
+          }
+          seal = {
+            awskms = {
+              region     = var.region
+              kms_key_id = "alias/prod-v5-vault-key"   # Consider making this a variable too later
+            }
+          }
+          listener = {
+            tcp = {
+              address     = "0.0.0.0:8200"
+              tls_disable = "true"
+            }
+          }
+          cluster_addr = "http://127.0.0.1:8201"
+          api_addr     = "https://${local.vault_fqdn}"   # ← Now dynamic
+          ui           = true
+          disable_mlock = true
+        })
+      },
       { name = "VAULT_LOG_LEVEL", value = "debug" }
     ]
   }])
@@ -213,7 +235,7 @@ resource "aws_ecs_service" "vault" {
 
 resource "aws_route53_record" "vault" {
   zone_id = data.aws_route53_zone.main.zone_id
-  name    = "vault.sreconcepts.com"
+  name    = local.vault_fqdn          # ← Now dynamic using variables
   type    = "A"
 
   alias {
