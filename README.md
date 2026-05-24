@@ -71,9 +71,6 @@ The architecture uses the following components:
 ---
 
 ## 2. 📊 Mermaid.js Code (Architecture Diagram)
-
-Paste this into your README.md to render the diagram:
-
 ```mermaid
 graph TD
     User((Client)) -->|HTTPS| Route53[Route 53]
@@ -128,8 +125,9 @@ graph TD
 ## Step-by-Step Implementation
 
 ### Layer 01: Networking
-1. Create your VPC, public subnets, and private subnets.
-2. Initialize, plan, and apply the network state.
+1. Update variables.tf for yoru own "region", "environment" and "vpc_cidr"
+2. Create your VPC, public subnets, and private subnets.
+3. Initialize, plan, and apply the network state.
    ```bash
    cd layers/01-network/
    terraform init
@@ -138,9 +136,10 @@ graph TD
    ```
 
 ### Layer 02: Security
-1. Create the AWS KMS key for auto-unseal, IAM roles for ECS tasks, and EFS security groups.
-2. Ensure the key alias matches `alias/prod-v5-vault-key`.
-3. Initialize, plan, and apply the security state.
+1. Update variables.tf for yoru own "region", "aws_account_id" and "kms_key_id"
+2. Create the AWS KMS key for auto-unseal, IAM roles for ECS tasks, and EFS security groups.
+3. Ensure the key alias matches `alias/prod-v5-vault-key`.
+4. Initialize, plan, and apply the security state.
    ```bash
    cd ../02-security
    terraform init
@@ -149,8 +148,9 @@ graph TD
    ```
 
 ### Layer 03: Storage
-1. Provision the Amazon EFS file system, access point, and security groups.
-2. Initialize, plan, and apply the storage state.
+1. Update variables.tf for yoru own "region"
+2. Provision the Amazon EFS file system, access point, and security groups.
+3. Initialize, plan, and apply the storage state.
    ```bash
    cd ../03-storage
    terraform init
@@ -177,6 +177,11 @@ variable "region" {
   description = "AWS Region"
   type        = string
   default     = "us-east-1"
+}
+
+variable "kms_key_id" {
+  type    = string
+  default = "alias/prod-v1-vault-key" # Updated to avoid collision, also if updated ensure it matches 02-security/variables.tf
 }
 
 2. Verify that `04-app/main.tf` is properly configured, and any redundant local files have been deleted.
@@ -303,6 +308,7 @@ Key    Value
 foo    world
 ```
 
+
 #### Further Reading & Official Vault Documentation
 Here are some official HashiCorp Vault resources especially helpful for beginners and AWS users:
 
@@ -407,5 +413,33 @@ vault auth enable aws
 See the Vault Tutorials (https://developer.hashicorp.com/vault/tutorials) for detailed examples.
     Security Note: Store your unseal keys and root token securely (e.g., in a password manager). 
     Consider using Vault's Auto-unseal with AWS KMS (already configured in this project).
+
+
+#### To Clean up AWS and Locally
+1. navigate to /vault-aws-fargate-ha/layers/04-app/
+```bash
+terraform destroy --auto-approve
+cd ../03-storage 
+terraform destroy --auto-approve
+cd ../02-security 
+terraform destroy --auto-approve
+cd ../01-network
+terraform destroy --auto-approve
+```
+
+2. navigate back to root directory vault-aws-fargate-ha/ and clean up terraform local files
+```bash
+cd ../..
+find . -type d -name ".terraform" -exec rm -rf {} \;
+find . -type f -name ".terraform.lock.hcl" -delete
+find . -type f -name "*.tfstate" -delete
+find . -type f -name "*.tfstate.backup" -delete
+find . -name ".terraform" -o -name "*.tfstate*"
+find . -type f -name "*.plan" -delete
+```
+3. Clean up unset variables created
+```bash
+unset VAULT_ADDR
+```
 
 ```

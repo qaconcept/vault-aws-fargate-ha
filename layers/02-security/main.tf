@@ -6,7 +6,7 @@ provider "aws" {
 # 1. KMS Key for Auto-Unseal
 # ---------------------------------------------------------
 resource "aws_kms_key" "vault_unseal" {
-  description             = "Vault unseal key prod-v4"
+  description             = "Vault unseal key prod-v1"
   deletion_window_in_days = 7
   enable_key_rotation     = true
 
@@ -18,7 +18,7 @@ resource "aws_kms_key" "vault_unseal" {
         Sid    = "Enable IAM User Permissions"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::581781313195:root" # Update with your AWS Account ID
+          AWS = ["arn:aws:iam::${var.aws_account_id}:root"] # Update with your AWS Account ID
         }
         Action   = "kms:*"
         Resource = "*"
@@ -45,7 +45,8 @@ resource "aws_kms_key" "vault_unseal" {
 }
 
 resource "aws_kms_alias" "vault_unseal" {
-  name          = "alias/prod-v5-vault-key" # Updated to avoid collision
+  #name          = "alias/prod-v1-vault-key" # Updated to avoid collision
+  name          = var.kms_key_id
   target_key_id = aws_kms_key.vault_unseal.key_id
 }
 

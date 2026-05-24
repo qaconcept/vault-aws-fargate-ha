@@ -179,7 +179,7 @@ resource "aws_ecs_task_definition" "vault" {
           seal = {
             awskms = {
               region     = var.region
-              kms_key_id = "alias/prod-v5-vault-key"   # Consider making this a variable too later
+              kms_key_id = var.kms_key_id
             }
           }
           listener = {

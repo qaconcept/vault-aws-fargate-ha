@@ -15,3 +15,8 @@ variable "region" {
   type        = string
   default     = "us-east-1"
 }
+
+variable "kms_key_id" {
+  type    = string
+  default = "alias/prod-v1-vault-key" # Updated to avoid collision, also if updated ensure it matches 02-security/variables.tf
+}
