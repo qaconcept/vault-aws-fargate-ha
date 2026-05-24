@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"
+  region = var.region
 }
 
 # ---------------------------------------------------------
@@ -13,7 +13,7 @@ data "terraform_remote_state" "network" {
 }
 
 locals {
-  vpc_id          = data.terraform_remote_state.network.outputs.vpc_id 
+  vpc_id          = data.terraform_remote_state.network.outputs.vpc_id
   storage_subnets = data.terraform_remote_state.network.outputs.private_subnets 
   vpc_cidr        = data.terraform_remote_state.network.outputs.vpc_cidr 
 }
